@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 
 import 'package:PiliPlus/utils/desktop/window_controller.dart';
 import 'package:PiliPlus/utils/device_utils.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/services.dart'
     show SystemChrome, SystemUiOverlay, DeviceOrientation;
 
@@ -24,7 +25,7 @@ void exitDesktopFullScreen() {
 
 List<DeviceOrientation>? _lastOrientation;
 Future<void>? _setPreferredOrientations(List<DeviceOrientation> orientations) {
-  if (_lastOrientation == orientations) {
+  if (listEquals(_lastOrientation, orientations)) {
     return null;
   }
   _lastOrientation = orientations;
@@ -45,6 +46,11 @@ Future<void>? landscapeLeftMode() {
 
 Future<void>? landscapeRightMode() {
   return _setPreferredOrientations(const [.landscapeRight]);
+}
+
+/// 不请求任何方向，由系统（ChromeOS / 手机系统）决定
+Future<void>? unspecifiedMode() {
+  return _setPreferredOrientations(const []);
 }
 
 Future<void>? fullMode() {

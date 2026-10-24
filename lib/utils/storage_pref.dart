@@ -36,6 +36,7 @@ import 'package:PiliPlus/utils/device_utils.dart';
 import 'package:PiliPlus/utils/extension/iterable_ext.dart';
 import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/login_utils.dart';
+import 'package:PiliPlus/utils/orientation_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
@@ -197,9 +198,11 @@ abstract final class Pref {
   static FullScreenMode get fullScreenMode {
     int? index = _setting.get(SettingBoxKey.fullScreenMode);
     if (index == null) {
-      final FullScreenMode mode = horizontalScreen && DeviceUtils.isTablet
-          ? .none
-          : .auto;
+      final mode = OrientationUtils.defaultFullScreenMode(
+        horizontalScreen: horizontalScreen,
+        isTablet: DeviceUtils.isTablet,
+        isChromeOS: DeviceUtils.isChromeOS,
+      );
       _setting.put(SettingBoxKey.fullScreenMode, mode.index);
       return mode;
     }
@@ -623,14 +626,37 @@ abstract final class Pref {
   static bool get optTabletNav =>
       _setting.get(SettingBoxKey.optTabletNav, defaultValue: true);
 
+  /// 横屏适配有效值
+  ///
+  /// 用户显式设置（[SettingBoxKey.horizontalScreenOverride]）优先，
+  /// 否则按环境推导，且不会把推导值写入存储
   static bool get horizontalScreen {
-    bool? horizontalScreen = _setting.get(SettingBoxKey.horizontalScreen);
-    if (horizontalScreen == null) {
-      final isTablet = DeviceUtils.isTablet;
-      _setting.put(SettingBoxKey.horizontalScreen, isTablet);
-      return isTablet;
+    final override =
+        _setting.get(SettingBoxKey.horizontalScreenOverride) as bool?;
+    return OrientationUtils.resolveHorizontalScreen(
+      override: override,
+      isTablet: DeviceUtils.isTablet,
+      isChromeOS: DeviceUtils.isChromeOS,
+    );
+  }
+
+  /// 迁移旧的 `horizontalScreen` 存储键
+  ///
+  /// 旧键既可能是用户手动设置，也可能是首次读取时写入的自动推导值，
+  /// 无法区分，因此统一并入 [SettingBoxKey.horizontalScreenOverride]，
+  /// ChromeOS 上直接丢弃（其旧值由不可靠的 `isTablet` 推导而来）
+  static Future<void> migrateHorizontalScreen() async {
+    final migrated =
+        _setting.get(SettingBoxKey.horizontalScreenMigrated) as bool? ?? false;
+    if (migrated) {
+      return;
     }
-    return horizontalScreen;
+    final old = _setting.get(SettingBoxKey.horizontalScreen) as bool?;
+    if (old != null && !DeviceUtils.isChromeOS) {
+      await _setting.put(SettingBoxKey.horizontalScreenOverride, old);
+    }
+    await _setting.delete(SettingBoxKey.horizontalScreen);
+    await _setting.put(SettingBoxKey.horizontalScreenMigrated, true);
   }
 
   static String get banWordForDyn =>
