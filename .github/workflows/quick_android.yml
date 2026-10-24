@@ -47,6 +47,10 @@ jobs:
                   flutter-version-file: pubspec.yaml
                   cache: true
 
+            - name: Apply SDK patch
+              shell: pwsh
+              run: lib/scripts/patch.ps1 android
+
             - name: Pub get
               run: flutter pub get
 
@@ -85,6 +89,10 @@ jobs:
                   channel: stable
                   flutter-version-file: pubspec.yaml
                   cache: true
+
+            - name: Apply SDK patch
+              shell: pwsh
+              run: lib/scripts/patch.ps1 android
 
             - name: Pub get
               run: flutter pub get
