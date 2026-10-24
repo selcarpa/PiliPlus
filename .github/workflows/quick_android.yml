@@ -121,5 +121,8 @@ jobs:
             - name: Analyze
               run: flutter analyze --no-fatal-warnings --no-fatal-infos
 
-            - name: Unit test
+            - name: Unit test (orientation)
+              run: flutter test test/utils/orientation_utils_test.dart
+
+            - name: Unit test (all)
               run: flutter test
