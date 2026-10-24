@@ -606,19 +606,12 @@ class PlPlayerController
   /// ChromeOS 上由窗口尺寸变化驱动进/出全屏
   bool _chromeOSLandscape = false;
 
-  /// 是否已注册 [WidgetsBindingObserver]
-  ///
-  /// 仅 ChromeOS 下注册，用于避免在 dispose 清理过程中抛出异常时残留观察者
-  bool _observerAdded = false;
-
   void _stopOrientationListener() {
     _orientationListener?.cancel();
     _orientationListener = null;
   }
 
   void _onOrientationChanged(OrientationParams param) {
-    // ChromeOS 上方向由系统决定，不使用传感器事件
-    if (DeviceUtils.isChromeOS) return;
     _orientation = param.orientation;
     if (Platform.isIOS && !visible) return;
     final orientation = param.orientation;
@@ -677,7 +670,6 @@ class PlPlayerController
         DeviceUtils.size.height,
       );
       WidgetsBinding.instance.addObserver(this);
-      _observerAdded = true;
     }
 
     if (!Accounts.heartbeat.isLogin || Pref.historyPause) {
@@ -1516,8 +1508,6 @@ class PlPlayerController
     required bool isVertical,
     DeviceOrientation? orientation,
   }) {
-    // ChromeOS 上不请求任何方向，由系统决定
-    if (DeviceUtils.isChromeOS) return null;
     if (orientation == null && (mode == .none || mode == .gravity)) {
       return null;
     }
@@ -1680,8 +1670,6 @@ class PlPlayerController
   bool get isCloseAll => _isCloseAll;
 
   Future<void>? resetScreenRotation() {
-    // ChromeOS 上不请求任何方向，由系统决定
-    if (DeviceUtils.isChromeOS) return null;
     if (horizontalScreen) {
       return fullMode();
     } else {
@@ -1708,11 +1696,8 @@ class PlPlayerController
     }
 
     _playerCount = 0;
-    if (_observerAdded) {
-      _observerAdded = false;
-      // 尽早移除观察者，避免后续清理过程抛出异常时残留
-      WidgetsBinding.instance.removeObserver(this);
-    }
+    // 未注册时移除也是安全的；尽早移除，避免后续清理异常时残留
+    WidgetsBinding.instance.removeObserver(this);
     if (removeSafeArea) {
       showSystemBar();
     }

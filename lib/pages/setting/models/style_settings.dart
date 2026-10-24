@@ -32,7 +32,6 @@ import 'package:PiliPlus/pages/setting/widgets/ordered_multi_select_dialog.dart'
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/slider_dialog.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
-import 'package:PiliPlus/utils/device_utils.dart';
 import 'package:PiliPlus/utils/extension/file_ext.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
@@ -905,11 +904,6 @@ Widget _themeTrailing(ThemeData theme) {
 }
 
 void _onHorizontalScreenChanged(bool value) {
-  if (DeviceUtils.isChromeOS) {
-    // ChromeOS 上方向由系统决定，不做方向请求
-    unspecifiedMode();
-    return;
-  }
   if (value) {
     fullMode();
   } else {

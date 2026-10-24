@@ -3,7 +3,6 @@ import 'dart:io' show Platform;
 
 import 'package:PiliPlus/utils/desktop/window_controller.dart';
 import 'package:PiliPlus/utils/device_utils.dart';
-import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/services.dart'
     show SystemChrome, SystemUiOverlay, DeviceOrientation;
 
@@ -27,11 +26,12 @@ List<DeviceOrientation>? _lastOrientation;
 
 /// 设置首选方向
 ///
-/// 用 [listEquals] 比较而非引用比较，保证「内容相同」时不再重复下发，
-/// 避免同一方向被反复设置。[const] 列表在 Dart 中是规范化的，
-/// 引用比较在多数情况下也能得到相同结果，这里统一按内容比较。
+/// ChromeOS 上方向由系统决定，App 不请求任何固定方向。
 Future<void>? _setPreferredOrientations(List<DeviceOrientation> orientations) {
-  if (listEquals(_lastOrientation, orientations)) {
+  if (DeviceUtils.isChromeOS) {
+    return null;
+  }
+  if (_lastOrientation == orientations) {
     return null;
   }
   _lastOrientation = orientations;
@@ -52,11 +52,6 @@ Future<void>? landscapeLeftMode() {
 
 Future<void>? landscapeRightMode() {
   return _setPreferredOrientations(const [.landscapeRight]);
-}
-
-/// 不请求任何方向，由系统（ChromeOS / 手机系统）决定
-Future<void>? unspecifiedMode() {
-  return _setPreferredOrientations(const []);
 }
 
 Future<void>? fullMode() {
