@@ -57,7 +57,8 @@ import 'package:easy_debounce/easy_throttle.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart'
     show DeviceOrientation, HapticFeedback, KeyDownEvent;
-import 'package:flutter/widgets.dart' show WidgetsBinding, WidgetsBindingObserver;
+import 'package:flutter/widgets.dart'
+    show Size, WidgetsBinding, WidgetsBindingObserver;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:get/get.dart';
@@ -606,6 +607,12 @@ class PlPlayerController
   /// ChromeOS 上由窗口尺寸变化驱动进/出全屏
   bool _chromeOSLandscape = false;
 
+  /// 上一次的窗口尺寸
+  ///
+  /// 用于区分「设备旋转」（宽高互换）与「窗口缩放」（宽高不互换）：
+  /// ChromeOS 窗口可自由缩放，只凭宽高比跨越 1:1 就切换全屏会误伤用户
+  Size? _lastWindowSize;
+
   /// 是否已注册 [WidgetsBindingObserver]
   ///
   /// 仅 ChromeOS 下注册，用于避免在 dispose 清理过程中抛出异常时残留观察者
@@ -672,10 +679,9 @@ class PlPlayerController
     }
 
     if (DeviceUtils.isChromeOS) {
-      _chromeOSLandscape = OrientationUtils.isLandscape(
-        DeviceUtils.size.width,
-        DeviceUtils.size.height,
-      );
+      final size = DeviceUtils.size;
+      _chromeOSLandscape = OrientationUtils.isLandscape(size.width, size.height);
+      _lastWindowSize = size;
       WidgetsBinding.instance.addObserver(this);
       _observerAdded = true;
     }
@@ -702,6 +708,19 @@ class PlPlayerController
     super.didChangeMetrics();
     if (!DeviceUtils.isChromeOS) return;
     final size = DeviceUtils.size;
+    final last = _lastWindowSize;
+    _lastWindowSize = size;
+    if (last == null) return;
+    // 只有宽高互换才认为是设备旋转；
+    // 窗口缩放 / 折叠屏展开等不改变横竖关系的变化不应切换全屏
+    if (!OrientationUtils.isAxisSwapped(
+      oldWidth: last.width,
+      oldHeight: last.height,
+      newWidth: size.width,
+      newHeight: size.height,
+    )) {
+      return;
+    }
     final isLandscape = OrientationUtils.isLandscape(size.width, size.height);
     if (isLandscape == _chromeOSLandscape) return;
     _chromeOSLandscape = isLandscape;

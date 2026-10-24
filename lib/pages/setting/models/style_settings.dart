@@ -31,6 +31,7 @@ import 'package:PiliPlus/pages/setting/widgets/multi_select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/ordered_multi_select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/slider_dialog.dart';
+import 'package:PiliPlus/pages/setting/widgets/switch_item.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/utils/device_utils.dart';
 import 'package:PiliPlus/utils/extension/file_ext.dart';
@@ -71,11 +72,12 @@ List<SettingsModel> get styleSettings => [
   if (Platform.isLinux) _useSSDModel(),
   SwitchModel(
     title: '横屏适配',
-    subtitle: '启用横屏布局与逻辑，平板、折叠屏等可开启；建议全屏方向设为【不改变当前方向】；ChromeOS 上默认开启',
+    subtitle: '启用横屏布局与逻辑，平板、折叠屏等可开启；建议全屏方向设为【不改变当前方向】；ChromeOS 上默认开启；长按可恢复为【自动】',
     leading: const Icon(Icons.phonelink_outlined),
     setKey: SettingBoxKey.horizontalScreenOverride,
-    defaultVal: Pref.horizontalScreen,
+    defaultVal: Pref.derivedHorizontalScreen,
     onChanged: _onHorizontalScreenChanged,
+    onLongPress: _onHorizontalScreenReset,
   ),
   const SwitchModel(
     title: '改用侧边栏',
@@ -915,6 +917,23 @@ void _onHorizontalScreenChanged(bool value) {
   } else {
     portraitUpMode();
   }
+}
+
+/// 长按「横屏适配」恢复为【自动】
+///
+/// 存储层用「键不存在」表示「跟随环境自动推导」，
+/// 开关拨动后会写入具体值且无法还原；这里删除该键即可恢复自动
+void _onHorizontalScreenReset(BuildContext context) {
+  _restoreHorizontalScreenAuto();
+}
+
+Future<void> _restoreHorizontalScreenAuto() async {
+  // 删除是异步的，必须等待完成后才能读到新的推导值
+  await GStorage.setting.delete(SettingBoxKey.horizontalScreenOverride);
+  // 通知开关重新读取存储值，避免显示与实际状态不一致
+  SetSwitchItem.revision.value++;
+  _onHorizontalScreenChanged(Pref.horizontalScreen);
+  SmartDialog.showToast('已恢复为「自动」');
 }
 
 Future<void> _showMineTabsDialog(

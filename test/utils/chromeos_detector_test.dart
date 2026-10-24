@@ -187,6 +187,45 @@ void main() {
       );
     });
 
+    test('设备代号只是包含标记子串时不判定为 ChromeOS', () {
+      // 强信号改为分词后的 token 精确匹配，
+      // 避免 `arcvmxyz` 之类仅含子串的普通设备被误判
+      expect(
+        _detect(
+          fingerprint: 'google/husky/husky:14/AP1A/123:user/release-keys',
+          product: 'arcvmxyz',
+          device: 'arcvmxyz',
+        ),
+        isFalse,
+      );
+      expect(
+        _detect(
+          fingerprint: 'google/husky/husky:14/AP1A/123:user/release-keys',
+          product: 'mycheetsphone',
+          device: 'mycheetsphone',
+        ),
+        isFalse,
+      );
+    });
+
+    test('设备代号以标记为独立词元时仍判定为 ChromeOS', () {
+      expect(
+        _detect(
+          fingerprint: 'google/kukui/kukui_cheets:13/R156-16836.19.0/16564639:user/release-keys',
+          product: 'bertha_arm64',
+          device: 'kukui_cheets',
+        ),
+        isTrue,
+      );
+      expect(
+        _detect(
+          product: 'cros_arcvm',
+          device: 'cros_arcvm',
+        ),
+        isTrue,
+      );
+    });
+
     test('三星等厂商设备不判定为 ChromeOS', () {
       expect(
         _detect(

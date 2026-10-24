@@ -633,6 +633,21 @@ abstract final class Pref {
   /// 在 [initEnvironment] 中冻结，避免运行期间随窗口/分屏尺寸变化而漂移
   static bool? _derivedHorizontalScreen;
 
+  /// 环境推导出的横屏适配值（不含用户显式设置）
+  ///
+  /// 在 [initEnvironment] 中冻结，避免运行期间随窗口/分屏尺寸变化而漂移；
+  /// 尚未初始化时（如测试环境）临时推导但不缓存，
+  /// 避免在设备环境初始化完成前把错误的推导值固化下来
+  static bool get derivedHorizontalScreen {
+    final derived = _derivedHorizontalScreen;
+    if (derived != null) return derived;
+    return OrientationUtils.resolveHorizontalScreen(
+      override: null,
+      isTablet: DeviceUtils.isTablet,
+      isChromeOS: DeviceUtils.isChromeOS,
+    );
+  }
+
   /// 横屏适配有效值
   ///
   /// 用户显式设置（[SettingBoxKey.horizontalScreenOverride]）优先，
@@ -641,15 +656,15 @@ abstract final class Pref {
     final override =
         _setting.get(SettingBoxKey.horizontalScreenOverride) as bool?;
     if (override != null) return override;
-    final derived = _derivedHorizontalScreen;
-    if (derived != null) return derived;
-    // 尚未调用 [initEnvironment]（如测试环境），临时推导但不缓存，
-    // 避免在设备环境初始化完成前把错误的推导值固化下来
-    return OrientationUtils.resolveHorizontalScreen(
-      override: null,
-      isTablet: DeviceUtils.isTablet,
-      isChromeOS: DeviceUtils.isChromeOS,
-    );
+    return derivedHorizontalScreen;
+  }
+
+  /// 测试用：重置冻结的环境推导值
+  ///
+  /// 冻结值是静态字段，会在用例之间残留，测试需显式复位
+  @visibleForTesting
+  static void resetDerivedHorizontalScreen() {
+    _derivedHorizontalScreen = null;
   }
 
   /// 初始化与设备环境相关的设置
@@ -693,6 +708,8 @@ abstract final class Pref {
         OrientationUtils.shouldKeepHorizontalScreenOverride(
           oldValue: old,
           isTablet: DeviceUtils.isTablet,
+          isChromeOS: DeviceUtils.isChromeOS,
+          legacyIsTablet: DeviceUtils.legacyIsTablet,
         )) {
       await _setting.put(SettingBoxKey.horizontalScreenOverride, old);
     }

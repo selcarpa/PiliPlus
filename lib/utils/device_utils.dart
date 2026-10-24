@@ -11,7 +11,11 @@ import 'package:nativeapi/nativeapi.dart' as nativeapi show Size;
 import 'package:win32/win32.dart' as kernel32;
 
 abstract final class DeviceUtils {
-  static final int sdkInt = AndroidHelper.sdkInt();
+  /// Android API 级别
+  ///
+  /// 非 Android 平台没有 JNI 环境，取 0；
+  /// 否则任何读取该值的代码都会在桌面/iOS 上因 JNI 加载失败而崩溃
+  static final int sdkInt = Platform.isAndroid ? AndroidHelper.sdkInt() : 0;
 
   /// ChromeOS 判定结果
   ///
@@ -37,10 +41,20 @@ abstract final class DeviceUtils {
     return displaySize.shortestSide >= 600;
   }
 
+  /// 旧版的平板判定：基于窗口尺寸
+  ///
+  /// 旧实现用它来决定写入 `horizontalScreen` 存储键的自动推导值，
+  /// 仅在迁移该旧键时用于识别「旧实现自动写入的值」，新逻辑不再使用
+  static bool get legacyIsTablet {
+    return size.shortestSide >= 600;
+  }
+
   /// 当前窗口尺寸
   ///
   /// 随窗口/分屏变化，适合判断当前朝向
   static Size get size {
+    final override = debugWindowSizeOverride;
+    if (override != null) return override;
     final view = WidgetsBinding.instance.platformDispatcher.views.first;
     return view.physicalSize / view.devicePixelRatio;
   }
@@ -61,6 +75,12 @@ abstract final class DeviceUtils {
   /// 便于在不依赖平台实际显示尺寸的前提下验证设备形态相关逻辑
   @visibleForTesting
   static Size? debugDisplaySizeOverride;
+
+  /// 测试用：覆盖[size]（窗口尺寸）
+  ///
+  /// 便于在不依赖平台实际窗口尺寸的前提下验证窗口相关的判定逻辑
+  @visibleForTesting
+  static Size? debugWindowSizeOverride;
 
   static String get platformName => PlatformUtils.isDesktop
       ? 'desktop'

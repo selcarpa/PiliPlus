@@ -20,6 +20,23 @@ abstract final class OrientationUtils {
   /// 宽高相等时视为纵向
   static bool isLandscape(double width, double height) => width > height;
 
+  /// 是否为「宽高互换」的方向变化（设备旋转）
+  ///
+  /// 设备旋转后新的宽高等于旧的宽、旧的高等于旧的高；
+  /// 而普通的窗口缩放、折叠屏展开等不会互换宽高。
+  /// 据此可把「设备旋转」与「窗口尺寸变化」区分开——
+  /// ChromeOS 上窗口可自由缩放，不能只凭宽高比跨越 1:1 就切换全屏。
+  static bool isAxisSwapped({
+    required double oldWidth,
+    required double oldHeight,
+    required double newWidth,
+    required double newHeight,
+    double tolerance = 2.0,
+  }) {
+    return (oldWidth - newHeight).abs() <= tolerance &&
+        (oldHeight - newWidth).abs() <= tolerance;
+  }
+
   /// 计算默认全屏方向
   static FullScreenMode defaultFullScreenMode({
     required bool horizontalScreen,
@@ -44,15 +61,20 @@ abstract final class OrientationUtils {
 
   /// 迁移旧的 `horizontalScreen` 存储键时，是否应保留旧值
   ///
-  /// 旧实现首次读取时会把自动推导值（`isTablet`）写入同一个 key，
+  /// 旧实现首次读取时会把自动推导值写入同一个 key，
   /// 因此旧值既可能是用户显式设置，也可能只是自动推导结果，无法直接区分。
-  /// 这里用「旧值是否仍等于当前自动推导值」来区分：
-  /// - 相等：用户未改动（或改成了同一个值），丢弃旧值并回归自动推导
-  /// - 不等：用户显式修改过，保留为 override 以尊重用户意图
+  /// 这里把旧值与「两种可能的自动推导值」比较：
+  /// - 等于当前推导值（[isTablet] || [isChromeOS]）：按新规则推导即可，丢弃旧值
+  /// - 等于旧规则推导值（[legacyIsTablet]，旧实现按窗口尺寸判定）：
+  ///   按旧规则推导即可，丢弃旧值
+  /// - 两者都不等：用户显式修改过，保留为 override 以尊重用户意图
   static bool shouldKeepHorizontalScreenOverride({
     required bool oldValue,
     required bool isTablet,
+    required bool isChromeOS,
+    required bool legacyIsTablet,
   }) {
-    return oldValue != isTablet;
+    final derived = isTablet || isChromeOS;
+    return oldValue != derived && oldValue != legacyIsTablet;
   }
 }

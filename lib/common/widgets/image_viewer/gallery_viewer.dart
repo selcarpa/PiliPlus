@@ -210,7 +210,7 @@ class _GalleryViewerState extends State<GalleryViewer>
       _initHideSystemBar();
       if (_hideSystemBar) {
         tmpPadding = padding;
-        hideSystemBar()!.whenComplete(
+        hideSystemBar().whenComplete(
           () => WidgetsBinding.instance.addPostFrameCallback(
             (_) => tmpPadding = null,
           ),

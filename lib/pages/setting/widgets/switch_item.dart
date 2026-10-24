@@ -14,6 +14,7 @@ class SetSwitchItem extends StatefulWidget {
   final bool needReboot;
   final Widget? leading;
   final void Function(BuildContext context)? onTap;
+  final void Function(BuildContext context)? onLongPress;
   final EdgeInsetsGeometry? contentPadding;
   final TextStyle? titleStyle;
   final bool isSplit;
@@ -28,10 +29,17 @@ class SetSwitchItem extends StatefulWidget {
     this.needReboot = false,
     this.leading,
     this.onTap,
+    this.onLongPress,
     this.contentPadding,
     this.titleStyle,
     this.isSplit = false,
   });
+
+  /// 递增以通知所有开关重新读取存储值
+  ///
+  /// 用于「恢复默认」这类会直接改写存储、而不经过开关本身的场景，
+  /// 否则开关显示的值会与存储不一致
+  static final ValueNotifier<int> revision = ValueNotifier<int>(0);
 
   @override
   State<SetSwitchItem> createState() => _SetSwitchItemState();
@@ -56,6 +64,18 @@ class _SetSwitchItemState extends State<SetSwitchItem> {
   void initState() {
     super.initState();
     _setVal();
+    SetSwitchItem.revision.addListener(_onRevision);
+  }
+
+  @override
+  void dispose() {
+    SetSwitchItem.revision.removeListener(_onRevision);
+    super.dispose();
+  }
+
+  void _onRevision() {
+    if (!mounted) return;
+    setState(_setVal);
   }
 
   Future<void> switchChange([bool? value]) async {
@@ -104,6 +124,9 @@ class _SetSwitchItemState extends State<SetSwitchItem> {
       contentPadding: widget.contentPadding,
       enabled: widget.onTap == null ? true : val,
       onTap: widget.onTap == null ? switchChange : () => widget.onTap!(context),
+      onLongPress: widget.onLongPress == null
+          ? null
+          : () => widget.onLongPress!(context),
       title: Text(widget.title, style: titleStyle),
       subtitle: widget.subtitle != null
           ? Text(widget.subtitle!, style: subTitleStyle)

@@ -54,21 +54,20 @@ abstract final class ChromeOSDetector {
     }
 
     final identity = [fingerprint, product, device];
+    final identityTokens = identity
+        .expand((value) => _tokens(value.toLowerCase()))
+        .toSet();
 
     // 强信号 2：ARC / ARCVM 设备代号
-    for (final value in identity) {
-      final lower = value.toLowerCase();
-      for (final marker in arcDeviceMarkers) {
-        if (lower.contains(marker)) {
-          return true;
-        }
+    // 用分词后的 token 精确匹配，避免 `arcvmxyz` 之类的子串误判
+    for (final marker in arcDeviceMarkers) {
+      if (identityTokens.contains(marker)) {
+        return true;
       }
     }
 
     // 弱信号：需同时满足两项才判定，避免普通设备被误判
-    final hasCrosToken = identity.any(
-      (value) => _tokens(value.toLowerCase()).contains(crosToken),
-    );
+    final hasCrosToken = identityTokens.contains(crosToken);
     final isChromiumBrand = brand.toLowerCase() == chromiumBrand &&
         manufacturer.toLowerCase() == chromiumBrand;
     return hasCrosToken && isChromiumBrand;
