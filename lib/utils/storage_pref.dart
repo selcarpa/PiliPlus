@@ -198,13 +198,15 @@ abstract final class Pref {
   static FullScreenMode get fullScreenMode {
     int? index = _setting.get(SettingBoxKey.fullScreenMode);
     if (index == null) {
-      final mode = OrientationUtils.defaultFullScreenMode(
+      // 默认值只在这里计算，不写回存储：
+      // 默认值依赖设备环境(isTablet / isChromeOS)，写回会把「环境推导值」
+      // 固化成「用户设置」，一旦环境判定出错(如 device_info 失败)
+      // 就再也无法自愈；用户显式修改时由设置页写入即可
+      return OrientationUtils.defaultFullScreenMode(
         horizontalScreen: horizontalScreen,
         isTablet: DeviceUtils.isTablet,
         isChromeOS: DeviceUtils.isChromeOS,
       );
-      _setting.put(SettingBoxKey.fullScreenMode, mode.index);
-      return mode;
     }
     return FullScreenMode.values[index];
   }
@@ -626,6 +628,11 @@ abstract final class Pref {
   static bool get optTabletNav =>
       _setting.get(SettingBoxKey.optTabletNav, defaultValue: true);
 
+  /// 环境推导出的横屏适配值
+  ///
+  /// 在 [initEnvironment] 中冻结，避免运行期间随窗口/分屏尺寸变化而漂移
+  static bool? _derivedHorizontalScreen;
+
   /// 横屏适配有效值
   ///
   /// 用户显式设置（[SettingBoxKey.horizontalScreenOverride]）优先，
@@ -633,8 +640,27 @@ abstract final class Pref {
   static bool get horizontalScreen {
     final override =
         _setting.get(SettingBoxKey.horizontalScreenOverride) as bool?;
+    if (override != null) return override;
+    final derived = _derivedHorizontalScreen;
+    if (derived != null) return derived;
+    // 尚未调用 [initEnvironment]（如测试环境），临时推导但不缓存，
+    // 避免在设备环境初始化完成前把错误的推导值固化下来
     return OrientationUtils.resolveHorizontalScreen(
-      override: override,
+      override: null,
+      isTablet: DeviceUtils.isTablet,
+      isChromeOS: DeviceUtils.isChromeOS,
+    );
+  }
+
+  /// 初始化与设备环境相关的设置
+  ///
+  /// 必须在 [DeviceUtils.init] 与 [GStorage.init] 之后调用：
+  /// 1. 迁移旧的 [SettingBoxKey.horizontalScreen] 存储键
+  /// 2. 冻结环境推导值，避免运行期间随窗口尺寸变化而漂移
+  static Future<void> initEnvironment() async {
+    await migrateHorizontalScreen();
+    _derivedHorizontalScreen = OrientationUtils.resolveHorizontalScreen(
+      override: null,
       isTablet: DeviceUtils.isTablet,
       isChromeOS: DeviceUtils.isChromeOS,
     );
@@ -643,16 +669,31 @@ abstract final class Pref {
   /// 迁移旧的 `horizontalScreen` 存储键
   ///
   /// 旧键既可能是用户手动设置，也可能是首次读取时写入的自动推导值，
-  /// 无法区分，因此统一并入 [SettingBoxKey.horizontalScreenOverride]，
-  /// ChromeOS 上直接丢弃（其旧值由不可靠的 `isTablet` 推导而来）
+  /// 无法直接区分，这里通过「旧值是否仍等于当前自动推导值」来判断：
+  /// - 相等：用户未改动，丢弃旧值并回归自动推导
+  /// - 不等：用户显式修改过，保留为 [SettingBoxKey.horizontalScreenOverride]
+  ///
+  /// Android 上若 ChromeOS 判定失败（[DeviceUtils.isDeviceInfoAvailable]
+  /// 为 false），则跳过迁移，避免固化错误的 override，下次启动会重试
   static Future<void> migrateHorizontalScreen() async {
+    if (OrientationUtils.shouldSkipHorizontalScreenMigration(
+      isAndroid: Platform.isAndroid,
+      isDeviceInfoAvailable: DeviceUtils.isDeviceInfoAvailable,
+    )) {
+      // 判定结果不可信，跳过迁移（且不写迁移标记），下次启动重试
+      return;
+    }
     final migrated =
         _setting.get(SettingBoxKey.horizontalScreenMigrated) as bool? ?? false;
     if (migrated) {
       return;
     }
     final old = _setting.get(SettingBoxKey.horizontalScreen) as bool?;
-    if (old != null && !DeviceUtils.isChromeOS) {
+    if (old != null &&
+        OrientationUtils.shouldKeepHorizontalScreenOverride(
+          oldValue: old,
+          isTablet: DeviceUtils.isTablet,
+        )) {
       await _setting.put(SettingBoxKey.horizontalScreenOverride, old);
     }
     await _setting.delete(SettingBoxKey.horizontalScreen);

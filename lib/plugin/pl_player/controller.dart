@@ -606,6 +606,11 @@ class PlPlayerController
   /// ChromeOS 上由窗口尺寸变化驱动进/出全屏
   bool _chromeOSLandscape = false;
 
+  /// 是否已注册 [WidgetsBindingObserver]
+  ///
+  /// 仅 ChromeOS 下注册，用于避免在 dispose 清理过程中抛出异常时残留观察者
+  bool _observerAdded = false;
+
   void _stopOrientationListener() {
     _orientationListener?.cancel();
     _orientationListener = null;
@@ -672,6 +677,7 @@ class PlPlayerController
         DeviceUtils.size.height,
       );
       WidgetsBinding.instance.addObserver(this);
+      _observerAdded = true;
     }
 
     if (!Accounts.heartbeat.isLogin || Pref.historyPause) {
@@ -1569,10 +1575,10 @@ class PlPlayerController
           if (!removeSafeArea) {
             showSystemBar();
           }
-          if (orientation == null && mode == .none) {
-            return;
+          // 不直接提前 return，避免跳过后续可能追加的清理逻辑
+          if (orientation != null || mode != .none) {
+            await resetScreenRotation();
           }
-          await resetScreenRotation();
         } else {
           exitDesktopFullScreen();
         }
@@ -1702,12 +1708,16 @@ class PlPlayerController
     }
 
     _playerCount = 0;
+    if (_observerAdded) {
+      _observerAdded = false;
+      // 尽早移除观察者，避免后续清理过程抛出异常时残留
+      WidgetsBinding.instance.removeObserver(this);
+    }
     if (removeSafeArea) {
       showSystemBar();
     }
     danmakuController = null;
     _stopOrientationListener();
-    WidgetsBinding.instance.removeObserver(this);
     _disableAutoEnterPip();
     setPlayCallBack(null);
     dmState.clear();
