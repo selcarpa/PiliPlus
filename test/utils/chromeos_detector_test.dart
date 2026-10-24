@@ -2,20 +2,18 @@ import 'package:PiliPlus/utils/chromeos_detector.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 普通 Android 手机
-const _phone = (
-  fingerprint: 'google/husky/husky:14/AP1A/123:user/release-keys',
-  product: 'husky',
-  device: 'husky',
-  brand: 'google',
-  manufacturer: 'Google',
-);
+const _phoneFingerprint = 'google/husky/husky:14/AP1A/123:user/release-keys';
+const _phoneProduct = 'husky';
+const _phoneDevice = 'husky';
+const _phoneBrand = 'google';
+const _phoneManufacturer = 'Google';
 
 bool _detect({
-  String fingerprint = _phone.fingerprint,
-  String product = _phone.product,
-  String device = _phone.device,
-  String brand = _phone.brand,
-  String manufacturer = _phone.manufacturer,
+  String fingerprint = _phoneFingerprint,
+  String product = _phoneProduct,
+  String device = _phoneDevice,
+  String brand = _phoneBrand,
+  String manufacturer = _phoneManufacturer,
   List<String> systemFeatures = const [],
 }) {
   return ChromeOSDetector.isChromeOS(
