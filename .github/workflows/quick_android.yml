@@ -15,10 +15,16 @@ on:
                 required: false
                 default: true
                 type: boolean
+            apk:
+                description: "构建 APK（关闭则只跑 analyze/测试）"
+                required: false
+                default: true
+                type: boolean
 
 jobs:
     apk:
         name: Build APK
+        if: ${{ inputs.apk }}
         runs-on: ubuntu-latest
         permissions:
             contents: read
@@ -50,6 +56,16 @@ jobs:
             - name: Apply SDK patch
               shell: pwsh
               run: lib/scripts/patch.ps1 android
+
+            - name: Write signing key
+              run: |
+                  if [ ! -z "${{ secrets.QUICK_KEYSTORE_BASE64 }}" ]; then
+                    echo "${{ secrets.QUICK_KEYSTORE_BASE64 }}" | base64 --decode > android/app/key.jks
+                    echo storeFile='key.jks' >> android/key.properties
+                    echo storePassword='${{ secrets.QUICK_KEYSTORE_PASSWORD }}' >> android/key.properties
+                    echo keyAlias='${{ secrets.QUICK_KEY_ALIAS }}' >> android/key.properties
+                    echo keyPassword='${{ secrets.QUICK_KEY_PASSWORD }}' >> android/key.properties
+                  fi
 
             - name: Pub get
               run: flutter pub get
