@@ -111,7 +111,7 @@ void main() {
   });
 
   group('Pref.fullScreenMode', () {
-    test('无显式设置时不写回存储，避免固化环境推导值', () async {
+    test('无显式设置时不写回存储，避免固化环境推导值', () {
       final mode = Pref.fullScreenMode;
 
       // 默认值只计算不落盘
