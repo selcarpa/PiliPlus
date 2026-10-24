@@ -7,6 +7,7 @@ import 'package:PiliPlus/common/widgets/scaffold/simple_scaffold.dart';
 import 'package:PiliPlus/models_new/live/live_superchat/item.dart';
 import 'package:PiliPlus/pages/live_room/superchat/superchat_card.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
+import 'package:PiliPlus/utils/device_utils.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
@@ -36,7 +37,10 @@ class _FullScreenScState extends State<FullScreenSc> {
   void initState() {
     super.initState();
     if (Platform.isAndroid) {
-      landscapeLeftMode();
+      // ChromeOS 上方向由系统决定，不做方向请求
+      if (!DeviceUtils.isChromeOS) {
+        landscapeLeftMode();
+      }
     } else if (Platform.isIOS) {
       landscapeRightMode();
     }
@@ -44,7 +48,7 @@ class _FullScreenScState extends State<FullScreenSc> {
 
   @override
   void dispose() {
-    if (PlatformUtils.isMobile) {
+    if (PlatformUtils.isMobile && !DeviceUtils.isChromeOS) {
       if (Pref.horizontalScreen) {
         fullMode();
       } else {

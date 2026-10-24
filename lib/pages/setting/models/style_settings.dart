@@ -32,6 +32,7 @@ import 'package:PiliPlus/pages/setting/widgets/ordered_multi_select_dialog.dart'
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/slider_dialog.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
+import 'package:PiliPlus/utils/device_utils.dart';
 import 'package:PiliPlus/utils/extension/file_ext.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
@@ -70,9 +71,9 @@ List<SettingsModel> get styleSettings => [
   if (Platform.isLinux) _useSSDModel(),
   SwitchModel(
     title: '横屏适配',
-    subtitle: '启用横屏布局与逻辑，平板、折叠屏等可开启；建议全屏方向设为【不改变当前方向】',
+    subtitle: '启用横屏布局与逻辑，平板、折叠屏等可开启；建议全屏方向设为【不改变当前方向】；ChromeOS 上默认开启',
     leading: const Icon(Icons.phonelink_outlined),
-    setKey: SettingBoxKey.horizontalScreen,
+    setKey: SettingBoxKey.horizontalScreenOverride,
     defaultVal: Pref.horizontalScreen,
     onChanged: _onHorizontalScreenChanged,
   ),
@@ -904,6 +905,11 @@ Widget _themeTrailing(ThemeData theme) {
 }
 
 void _onHorizontalScreenChanged(bool value) {
+  if (DeviceUtils.isChromeOS) {
+    // ChromeOS 上方向由系统决定，不做方向请求
+    unspecifiedMode();
+    return;
+  }
   if (value) {
     fullMode();
   } else {

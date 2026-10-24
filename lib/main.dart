@@ -91,10 +91,22 @@ Future<void> _initAppPath() async {
   appSupportDirPath = (await getApplicationSupportDirectory()).path;
 }
 
+/// 初始化窗口方向
+///
+/// ChromeOS 上由系统决定方向，App 不做任何方向请求；
+/// 其余移动端按「横屏适配」设置请求方向
+Future<void>? _initOrientation() {
+  if (Platform.isAndroid && DeviceUtils.isChromeOS) {
+    return unspecifiedMode();
+  }
+  return Pref.horizontalScreen ? fullMode() : portraitUpMode();
+}
+
 void main() async {
   ScaledWidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
   await _initAppPath();
+  await DeviceUtils.init();
   try {
     await GStorage.init();
   } catch (e) {
@@ -102,6 +114,7 @@ void main() async {
     if (kDebugMode) debugPrint('GStorage init error: $e');
     DeviceUtils.exitApp();
   }
+  await Pref.migrateHorizontalScreen();
   ScaledWidgetsFlutterBinding.instance.scaleFactor = Pref.uiScale;
   await Future.wait([
     _initDownPath(),
@@ -117,7 +130,7 @@ void main() async {
   if (PlatformUtils.isMobile) {
     if (Platform.isAndroid) MaxScreenSize.init();
     await Future.wait([
-      if (Pref.horizontalScreen) ?fullMode() else ?portraitUpMode(),
+      ?_initOrientation(),
       setupServiceLocator(),
       if (Platform.isIOS) IOSPipHelper.init(),
     ]);

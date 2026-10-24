@@ -43,6 +43,7 @@ import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/image_utils.dart';
 import 'package:PiliPlus/utils/ios/pip_helper.dart';
+import 'package:PiliPlus/utils/orientation_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
@@ -56,6 +57,7 @@ import 'package:easy_debounce/easy_throttle.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart'
     show DeviceOrientation, HapticFeedback, KeyDownEvent;
+import 'package:flutter/widgets.dart' show WidgetsBinding, WidgetsBindingObserver;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:get/get.dart';
@@ -73,7 +75,8 @@ import 'package:window_manager/window_manager.dart';
 typedef PlayCallback = Future<void>? Function();
 typedef PlayOwner = ({String tag, Type? type});
 
-class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
+class PlPlayerController
+    with BlockConfigMixin, AudioNormalizationMixin, WidgetsBindingObserver {
   Player? _videoPlayerController;
   VideoController? _videoController;
 
@@ -600,12 +603,17 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   late final checkIsAutoRotate = Platform.isAndroid && mode != .gravity;
   StreamSubscription<OrientationParams>? _orientationListener;
 
+  /// ChromeOS 上由窗口尺寸变化驱动进/出全屏
+  bool _chromeOSLandscape = false;
+
   void _stopOrientationListener() {
     _orientationListener?.cancel();
     _orientationListener = null;
   }
 
   void _onOrientationChanged(OrientationParams param) {
+    // ChromeOS 上方向由系统决定，不使用传感器事件
+    if (DeviceUtils.isChromeOS) return;
     _orientation = param.orientation;
     if (Platform.isIOS && !visible) return;
     final orientation = param.orientation;
@@ -649,13 +657,21 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
 
   // 添加一个私有构造函数
   PlPlayerController._() {
-    if (PlatformUtils.isMobile) {
+    if (PlatformUtils.isMobile && !DeviceUtils.isChromeOS) {
       _orientationListener = NativeDeviceOrientationPlatform.instance
           .onOrientationChanged(
             checkIsAutoRotate: checkIsAutoRotate,
             angleDegrees: Platform.isAndroid ? Pref.angleDegrees : null,
           )
           .listen(_onOrientationChanged);
+    }
+
+    if (DeviceUtils.isChromeOS) {
+      _chromeOSLandscape = OrientationUtils.isLandscape(
+        DeviceUtils.size.width,
+        DeviceUtils.size.height,
+      );
+      WidgetsBinding.instance.addObserver(this);
     }
 
     if (!Accounts.heartbeat.isLogin || Pref.historyPause) {
@@ -672,6 +688,25 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       }
     } else if (Platform.isIOS && autoPiP && IOSPipHelper.isAvailable) {
       _isAutoEnterPip = true;
+    }
+  }
+
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    if (!DeviceUtils.isChromeOS) return;
+    final size = DeviceUtils.size;
+    final isLandscape = OrientationUtils.isLandscape(size.width, size.height);
+    if (isLandscape == _chromeOSLandscape) return;
+    _chromeOSLandscape = isLandscape;
+    if (!_isCurrVideoPage) return;
+    // 不传入 orientation，避免把窗口方向钉死
+    if (isLandscape) {
+      if (!isFullScreen.value) {
+        triggerFullScreen(isManualFS: false);
+      }
+    } else if (isFullScreen.value) {
+      triggerFullScreen(status: false, isManualFS: false);
     }
   }
 
@@ -1475,6 +1510,8 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     required bool isVertical,
     DeviceOrientation? orientation,
   }) {
+    // ChromeOS 上不请求任何方向，由系统决定
+    if (DeviceUtils.isChromeOS) return null;
     if (orientation == null && (mode == .none || mode == .gravity)) {
       return null;
     }
@@ -1637,6 +1674,8 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   bool get isCloseAll => _isCloseAll;
 
   Future<void>? resetScreenRotation() {
+    // ChromeOS 上不请求任何方向，由系统决定
+    if (DeviceUtils.isChromeOS) return null;
     if (horizontalScreen) {
       return fullMode();
     } else {
@@ -1668,6 +1707,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     }
     danmakuController = null;
     _stopOrientationListener();
+    WidgetsBinding.instance.removeObserver(this);
     _disableAutoEnterPip();
     setPlayCallBack(null);
     dmState.clear();
