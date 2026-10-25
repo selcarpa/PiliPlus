@@ -199,9 +199,9 @@ abstract final class Pref {
     int? index = _setting.get(SettingBoxKey.fullScreenMode);
     if (index == null) {
       // 默认值只在这里计算，不写回存储：
-      // 默认值依赖设备环境(isTablet / isChromeOS)，写回会把「环境推导值」
-      // 固化成「用户设置」，一旦环境判定出错(如 device_info 失败)
-      // 就再也无法自愈；用户显式修改时由设置页写入即可
+      // 默认值依赖横屏适配设置与设备环境(isTablet / isChromeOS)，写回会把
+      // 「环境推导值」固化成「用户设置」，环境判定出错时无法自愈；
+      // 用户显式修改时由设置页写入即可
       return OrientationUtils.defaultFullScreenMode(
         horizontalScreen: horizontalScreen,
         isTablet: DeviceUtils.isTablet,
@@ -630,8 +630,8 @@ abstract final class Pref {
 
   /// 横屏适配
   ///
-  /// 未显式设置时，平板与 ChromeOS 默认开启。
-  /// 默认值不写回存储，避免把环境推导值固化成用户设置
+  /// 存储中无该键时，按当前设备环境计算默认值：平板与 ChromeOS 默认开启。
+  /// 默认值不写回存储；已存值（包括旧版本自动写入的）优先
   static bool get horizontalScreen => _setting.get(
     SettingBoxKey.horizontalScreen,
     defaultValue: DeviceUtils.isTablet || DeviceUtils.isChromeOS,
