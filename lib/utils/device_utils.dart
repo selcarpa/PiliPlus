@@ -15,20 +15,13 @@ abstract final class DeviceUtils {
 
   /// ChromeOS 判定结果
   ///
-  /// null 表示尚未完成判定或判定失败，此时 [isChromeOS] 退化为 false，
-  /// 但调用方应通过 [isDeviceInfoAvailable] 判断结果是否可信，
-  /// 避免在判定失败时执行不可逆操作（如一次性存储迁移）
+  /// null 表示尚未完成判定或判定失败，此时 [isChromeOS] 退化为 false
   static bool? _isChromeOS;
 
   /// 当前是否运行在 ChromeOS(ARC / ARCVM) 上
   ///
   /// ChromeOS 的窗口方向由系统决定，App 不应再主动请求方向
   static bool get isChromeOS => _isChromeOS ?? false;
-
-  /// 设备信息是否获取成功并完成 ChromeOS 判定
-  ///
-  /// 为 false 时判定结果不可信，不应固化任何依赖 [isChromeOS] 的存储值
-  static bool get isDeviceInfoAvailable => _isChromeOS != null;
 
   /// 设备是否为平板
   ///
@@ -97,8 +90,7 @@ abstract final class DeviceUtils {
       }
     } catch (e) {
       debugPrint('DeviceUtils.init error: $e');
-      // 保持 _isChromeOS 为 null，判定结果不可信，
-      // 依赖 isChromeOS 的不可逆操作应被跳过
+      // 保持 _isChromeOS 为 null，[isChromeOS] 退化为 false
     }
   }
 

@@ -103,13 +103,6 @@ void main() async {
     if (kDebugMode) debugPrint('GStorage init error: $e');
     DeviceUtils.exitApp();
   }
-  try {
-    // 迁移旧设置并冻结与设备环境相关的推导值，
-    // 必须在 DeviceUtils.init 与 GStorage.init 之后执行
-    await Pref.initEnvironment();
-  } catch (e) {
-    if (kDebugMode) debugPrint('Pref init environment error: $e');
-  }
   ScaledWidgetsFlutterBinding.instance.scaleFactor = Pref.uiScale;
   await Future.wait([
     _initDownPath(),
