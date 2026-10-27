@@ -3,20 +3,6 @@ import 'package:PiliPlus/utils/orientation_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('OrientationUtils.isLandscape', () {
-    test('宽大于高为横向', () {
-      expect(OrientationUtils.isLandscape(1920, 1080), isTrue);
-    });
-
-    test('高大于宽为纵向', () {
-      expect(OrientationUtils.isLandscape(1080, 1920), isFalse);
-    });
-
-    test('宽高相等为纵向', () {
-      expect(OrientationUtils.isLandscape(1080, 1080), isFalse);
-    });
-  });
-
   group('OrientationUtils.defaultFullScreenMode', () {
     test('ChromeOS 默认为不改变当前方向', () {
       expect(

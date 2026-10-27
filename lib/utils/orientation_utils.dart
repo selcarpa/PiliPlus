@@ -4,11 +4,6 @@ import 'package:PiliPlus/plugin/pl_player/models/fullscreen_mode.dart';
 ///
 /// 独立于任何平台绑定，便于单元测试
 abstract final class OrientationUtils {
-  /// 根据视图宽高判断是否处于横向（宽 > 高）
-  ///
-  /// 宽高相等时视为纵向
-  static bool isLandscape(double width, double height) => width > height;
-
   /// 计算默认全屏方向
   static FullScreenMode defaultFullScreenMode({
     required bool horizontalScreen,

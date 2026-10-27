@@ -43,7 +43,6 @@ import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/image_utils.dart';
 import 'package:PiliPlus/utils/ios/pip_helper.dart';
-import 'package:PiliPlus/utils/orientation_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
@@ -57,7 +56,6 @@ import 'package:easy_debounce/easy_throttle.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart'
     show DeviceOrientation, HapticFeedback, KeyDownEvent;
-import 'package:flutter/widgets.dart' show WidgetsBinding, WidgetsBindingObserver;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:get/get.dart';
@@ -75,8 +73,7 @@ import 'package:window_manager/window_manager.dart';
 typedef PlayCallback = Future<void>? Function();
 typedef PlayOwner = ({String tag, Type? type});
 
-class PlPlayerController
-    with BlockConfigMixin, AudioNormalizationMixin, WidgetsBindingObserver {
+class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   Player? _videoPlayerController;
   VideoController? _videoController;
 
@@ -608,9 +605,6 @@ class PlPlayerController
   late final checkIsAutoRotate = Platform.isAndroid && mode != .gravity;
   StreamSubscription<OrientationParams>? _orientationListener;
 
-  /// ChromeOS 上由窗口尺寸变化驱动进/出全屏
-  bool _chromeOSLandscape = false;
-
   void _stopOrientationListener() {
     _orientationListener?.cancel();
     _orientationListener = null;
@@ -669,14 +663,6 @@ class PlPlayerController
           .listen(_onOrientationChanged);
     }
 
-    if (DeviceUtils.isChromeOS) {
-      _chromeOSLandscape = OrientationUtils.isLandscape(
-        DeviceUtils.size.width,
-        DeviceUtils.size.height,
-      );
-      WidgetsBinding.instance.addObserver(this);
-    }
-
     if (!Accounts.heartbeat.isLogin || Pref.historyPause) {
       enableHeart = false;
     }
@@ -691,25 +677,6 @@ class PlPlayerController
       }
     } else if (Platform.isIOS && autoPiP && IOSPipHelper.isAvailable) {
       _isAutoEnterPip = true;
-    }
-  }
-
-  @override
-  void didChangeMetrics() {
-    super.didChangeMetrics();
-    if (!DeviceUtils.isChromeOS) return;
-    final size = DeviceUtils.size;
-    final isLandscape = OrientationUtils.isLandscape(size.width, size.height);
-    if (isLandscape == _chromeOSLandscape) return;
-    _chromeOSLandscape = isLandscape;
-    if (!_isCurrVideoPage) return;
-    // 不传入 orientation，避免把窗口方向钉死
-    if (isLandscape) {
-      if (!isFullScreen.value) {
-        triggerFullScreen(isManualFS: false);
-      }
-    } else if (isFullScreen.value) {
-      triggerFullScreen(status: false, isManualFS: false);
     }
   }
 
@@ -1570,10 +1537,10 @@ class PlPlayerController
           if (!removeSafeArea) {
             showSystemBar();
           }
-          // 不直接提前 return，避免跳过后续可能追加的清理逻辑
-          if (orientation != null || mode != .none) {
-            await resetScreenRotation();
+          if (orientation == null && mode == .none) {
+            return;
           }
+          await resetScreenRotation();
         } else {
           exitDesktopFullScreen();
         }
@@ -1701,8 +1668,6 @@ class PlPlayerController
     }
 
     _playerCount = 0;
-    // 未注册时移除也是安全的；尽早移除，避免后续清理异常时残留
-    WidgetsBinding.instance.removeObserver(this);
     if (removeSafeArea) {
       showSystemBar();
     }

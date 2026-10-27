@@ -26,7 +26,7 @@ void main() {
   });
 
   tearDown(() {
-    DeviceUtils.debugDisplaySizeOverride = null;
+    DeviceUtils.debugSizeOverride = null;
   });
 
   tearDownAll(() async {
@@ -35,27 +35,27 @@ void main() {
   });
 
   group('Pref.horizontalScreen', () {
-    test('平板未显式设置时默认开启，且不写回存储', () {
-      DeviceUtils.debugDisplaySizeOverride = const Size(1280, 800);
+    test('平板未显式设置时默认开启并写回存储', () {
+      DeviceUtils.debugSizeOverride = const Size(1280, 800);
 
       expect(Pref.horizontalScreen, isTrue);
-      expect(settingBox.containsKey(SettingBoxKey.horizontalScreen), isFalse);
+      expect(settingBox.get(SettingBoxKey.horizontalScreen), isTrue);
     });
 
-    test('手机未显式设置时默认关闭', () {
-      DeviceUtils.debugDisplaySizeOverride = const Size(360, 800);
+    test('手机未显式设置时默认关闭并写回存储', () {
+      DeviceUtils.debugSizeOverride = const Size(360, 800);
 
       expect(Pref.horizontalScreen, isFalse);
-      expect(settingBox.containsKey(SettingBoxKey.horizontalScreen), isFalse);
+      expect(settingBox.get(SettingBoxKey.horizontalScreen), isFalse);
     });
 
     test('显式设置优先于设备默认值', () async {
-      DeviceUtils.debugDisplaySizeOverride = const Size(1280, 800);
+      DeviceUtils.debugSizeOverride = const Size(1280, 800);
       await settingBox.put(SettingBoxKey.horizontalScreen, false);
 
       expect(Pref.horizontalScreen, isFalse);
 
-      DeviceUtils.debugDisplaySizeOverride = const Size(360, 800);
+      DeviceUtils.debugSizeOverride = const Size(360, 800);
       await settingBox.put(SettingBoxKey.horizontalScreen, true);
 
       expect(Pref.horizontalScreen, isTrue);
@@ -63,12 +63,11 @@ void main() {
   });
 
   group('Pref.fullScreenMode', () {
-    test('无显式设置时不写回存储', () {
+    test('无显式设置时按环境计算默认值并写回存储', () {
       final mode = Pref.fullScreenMode;
 
-      // 默认值只计算不落盘
-      expect(settingBox.containsKey(SettingBoxKey.fullScreenMode), isFalse);
-      // 多次读取结果一致（不会因写回而固化成用户设置）
+      expect(settingBox.get(SettingBoxKey.fullScreenMode), mode.index);
+      // 多次读取结果一致
       expect(Pref.fullScreenMode, mode);
     });
 

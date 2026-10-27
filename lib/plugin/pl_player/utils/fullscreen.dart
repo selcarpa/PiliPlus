@@ -67,14 +67,6 @@ Future<void>? hideSystemBar() {
     return null;
   }
   _showSystemBar = false;
-  // Android 15(API 35) 起，系统会忽略 immersive / immersiveSticky
-  // （本 App targetSdk >= 35 且未申请 edge-to-edge 豁免）。
-  // 而 Flutter 引擎在切到 immersive 时会先关闭 edge-to-edge，
-  // 于是系统栏依然可见、内容却被内缩，造成布局跳动。
-  // 因此在新系统上不再请求 immersive，保持 edge-to-edge 不做切换。
-  if (Platform.isAndroid && DeviceUtils.sdkInt >= 35) {
-    return null;
-  }
   return SystemChrome.setEnabledSystemUIMode(.immersiveSticky);
 }
 

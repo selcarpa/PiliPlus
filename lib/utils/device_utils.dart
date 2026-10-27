@@ -24,10 +24,10 @@ abstract final class DeviceUtils {
   static bool get isChromeOS => _isChromeOS ?? false;
 
   /// 设备是否为平板
-  ///
-  /// 基于显示设备尺寸而非窗口尺寸，避免分屏/自由窗口下判定结果随窗口漂移
   static bool get isTablet {
-    return displaySize.shortestSide >= 600;
+    final override = debugSizeOverride;
+    if (override != null) return override.shortestSide >= 600;
+    return size.shortestSide >= 600;
   }
 
   /// 当前窗口尺寸
@@ -38,22 +38,11 @@ abstract final class DeviceUtils {
     return view.physicalSize / view.devicePixelRatio;
   }
 
-  /// 当前显示设备尺寸
-  ///
-  /// 描述设备本身，不随分屏/自由窗口变化，适合判断设备形态（手机/平板）
-  static Size get displaySize {
-    final override = debugDisplaySizeOverride;
-    if (override != null) return override;
-    final view = WidgetsBinding.instance.platformDispatcher.views.first;
-    final display = view.display;
-    return display.size / display.devicePixelRatio;
-  }
-
-  /// 测试用：覆盖[displaySize]
+  /// 测试用：覆盖平板判定所用的窗口尺寸
   ///
   /// 便于在不依赖平台实际显示尺寸的前提下验证设备形态相关逻辑
   @visibleForTesting
-  static Size? debugDisplaySizeOverride;
+  static Size? debugSizeOverride;
 
   static String get platformName => PlatformUtils.isDesktop
       ? 'desktop'
