@@ -2,6 +2,18 @@ name: Quick Android
 
 # 简化版 Android 编译流程：只做「拉代码 → 装 Flutter → 出 arm64 APK」
 # 用于快速验证改动，不做版本号/签名/多 ABI/SDK 补丁等发布相关工作。
+#
+# ── 构建期改包名（本分支提供的能力）────────────────────────────────────────
+# 被编译的业务分支无需任何改动：构建前在 CI 工作区内临时改写 applicationId
+# 与桌面显示名，产物不产生任何提交，业务分支保持干净。
+#
+# 双包对比测试:
+#   1) 基准包: app_id 留空                              → com.example.piliplus
+#   2) 对比包: app_id = one.tain.piliplus
+#              app_label = PiliPlus One                  → one.tain.piliplus
+#   两次产物使用同一把签名密钥，可同时安装在同一台设备上。
+#   注意: 两包共用 bili:// scheme 与 http/https intent-filter，
+#         点击外部链接时系统会弹出应用选择器（对比测试的预期行为）。
 on:
     workflow_dispatch:
         inputs:
@@ -20,6 +32,16 @@ on:
                 required: false
                 default: true
                 type: boolean
+            app_id:
+                description: "自定义 applicationId（留空 = com.example.piliplus），仅构建期生效，不改动被构建分支"
+                required: false
+                default: ""
+                type: string
+            app_label:
+                description: "自定义桌面显示名（留空 = PiliPlus），仅构建期生效"
+                required: false
+                default: ""
+                type: string
 
 jobs:
     apk:
@@ -70,6 +92,39 @@ jobs:
             - name: Pub get
               run: flutter pub get
 
+            # 只改写构建工作区，不产生提交；namespace 与源码包名保持不变，
+            # 因此无需移动 Kotlin/Java 源码，两个包即可共存于同一设备。
+            - name: Override application id and app label
+              env:
+                  APP_ID: ${{ inputs.app_id }}
+                  APP_LABEL: ${{ inputs.app_label }}
+              run: |
+                  set -e
+                  if [ -n "$APP_ID" ]; then
+                    if ! grep -qE 'applicationId[[:space:]]*=' android/app/build.gradle.kts; then
+                      echo "::error::未在 android/app/build.gradle.kts 中找到 applicationId 赋值，无法改写包名"
+                      exit 1
+                    fi
+                    sed -i -E "s#(applicationId[[:space:]]*=[[:space:]]*)\"[^\"]*\"#\1\"$APP_ID\"#" android/app/build.gradle.kts
+                    if ! grep -qE "applicationId[[:space:]]*=[[:space:]]*\"$APP_ID\"" android/app/build.gradle.kts; then
+                      echo "::error::applicationId 改写失败：目标值 $APP_ID 未出现在 gradle 文件中"
+                      exit 1
+                    fi
+                    echo "applicationId 已改写为 $APP_ID"
+                  fi
+                  if [ -n "$APP_LABEL" ]; then
+                    # release 源集优先级高于 main，用资源覆盖实现改名，不动 AndroidManifest
+                    mkdir -p android/app/src/release/res/values
+                    label=$(printf '%s' "$APP_LABEL" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
+                    cat > android/app/src/release/res/values/ci_app_name.xml <<EOF
+                  <?xml version="1.0" encoding="utf-8"?>
+                  <resources>
+                      <string name="app_name">$label</string>
+                  </resources>
+                  EOF
+                    echo "app_name 已覆盖为 $APP_LABEL"
+                  fi
+
             - name: Build arm64 release APK
               run: >
                   flutter build apk --release
@@ -79,11 +134,36 @@ jobs:
                   --dart-define=pili.hash=${{ github.sha }}
                   --dart-define=pili.time=0
 
+            - name: Verify package id
+              env:
+                  APP_ID: ${{ inputs.app_id }}
+              run: |
+                  apk=build/app/outputs/flutter-apk/app-release.apk
+                  unzip -p "$apk" AndroidManifest.xml > manifest.bin
+                  echo "--- 产物清单中出现的包名相关片段:"
+                  { strings -a manifest.bin; strings -el manifest.bin; } \
+                    | grep -E 'piliplus' | sort -u | head -20
+                  if [ -n "$APP_ID" ]; then
+                    if ! { strings -a manifest.bin; strings -el manifest.bin; } | grep -qF "$APP_ID"; then
+                      echo "::error::产物中未找到目标包名 $APP_ID，说明改写未生效"
+                      exit 1
+                    fi
+                    echo "OK: 目标包名 $APP_ID 已出现在产物清单中"
+                  fi
+
+            - name: Rename APK
+              env:
+                  APP_ID: ${{ inputs.app_id }}
+              run: |
+                  suffix="${APP_ID:-default}"
+                  mv build/app/outputs/flutter-apk/app-release.apk \
+                     "build/app/outputs/flutter-apk/PiliPlus_quick_${suffix}.apk"
+
             - name: Upload APK
               uses: actions/upload-artifact@v7
               with:
-                  name: quick-apk
-                  path: build/app/outputs/flutter-apk/app-release.apk
+                  name: quick-apk-${{ inputs.app_id || 'default' }}
+                  path: build/app/outputs/flutter-apk/PiliPlus_quick_*.apk
                   if-no-files-found: error
 
     check:
