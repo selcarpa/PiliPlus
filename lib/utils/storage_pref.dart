@@ -36,7 +36,6 @@ import 'package:PiliPlus/utils/device_utils.dart';
 import 'package:PiliPlus/utils/extension/iterable_ext.dart';
 import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/login_utils.dart';
-import 'package:PiliPlus/utils/orientation_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
@@ -200,11 +199,9 @@ abstract final class Pref {
   static FullScreenMode get fullScreenMode {
     int? index = _setting.get(SettingBoxKey.fullScreenMode);
     if (index == null) {
-      final FullScreenMode mode = OrientationUtils.defaultFullScreenMode(
-        horizontalScreen: horizontalScreen,
-        isTablet: DeviceUtils.isTablet,
-        isChromeOS: DeviceUtils.isChromeOS,
-      );
+      final FullScreenMode mode = horizontalScreen && DeviceUtils.isTablet
+          ? .none
+          : .auto;
       _setting.put(SettingBoxKey.fullScreenMode, mode.index);
       return mode;
     }
@@ -628,15 +625,12 @@ abstract final class Pref {
   static bool get optTabletNav =>
       _setting.get(SettingBoxKey.optTabletNav, defaultValue: true);
 
-  /// 横屏适配
-  ///
-  /// 存储中无该键时，按当前设备环境计算默认值：平板与 ChromeOS 默认开启
   static bool get horizontalScreen {
     bool? horizontalScreen = _setting.get(SettingBoxKey.horizontalScreen);
     if (horizontalScreen == null) {
-      final value = DeviceUtils.isTablet || DeviceUtils.isChromeOS;
-      _setting.put(SettingBoxKey.horizontalScreen, value);
-      return value;
+      final isTablet = DeviceUtils.isTablet;
+      _setting.put(SettingBoxKey.horizontalScreen, isTablet);
+      return isTablet;
     }
     return horizontalScreen;
   }

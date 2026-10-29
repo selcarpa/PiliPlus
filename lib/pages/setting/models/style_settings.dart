@@ -70,7 +70,7 @@ List<SettingsModel> get styleSettings => [
   if (Platform.isLinux) _useSSDModel(),
   SwitchModel(
     title: '横屏适配',
-    subtitle: '启用横屏布局与逻辑，平板、折叠屏等可开启；建议全屏方向设为【不改变当前方向】；平板与 ChromeOS 默认开启',
+    subtitle: '启用横屏布局与逻辑，平板、折叠屏等可开启；建议全屏方向设为【不改变当前方向】',
     leading: const Icon(Icons.phonelink_outlined),
     setKey: SettingBoxKey.horizontalScreen,
     defaultVal: Pref.horizontalScreen,

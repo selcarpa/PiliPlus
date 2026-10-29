@@ -4,8 +4,7 @@ import 'package:PiliPlus/utils/android/bindings.g.dart';
 import 'package:PiliPlus/utils/chromeos_detector.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/foundation.dart'
-    show debugPrint, kDebugMode, visibleForTesting;
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter/widgets.dart' show WidgetsBinding, Size;
 import 'package:nativeapi/nativeapi.dart' as nativeapi show Size;
 import 'package:win32/win32.dart' as kernel32;
@@ -25,8 +24,6 @@ abstract final class DeviceUtils {
 
   /// 设备是否为平板
   static bool get isTablet {
-    final override = debugSizeOverride;
-    if (override != null) return override.shortestSide >= 600;
     return size.shortestSide >= 600;
   }
 
@@ -37,12 +34,6 @@ abstract final class DeviceUtils {
     final view = WidgetsBinding.instance.platformDispatcher.views.first;
     return view.physicalSize / view.devicePixelRatio;
   }
-
-  /// 测试用：覆盖平板判定所用的窗口尺寸
-  ///
-  /// 便于在不依赖平台实际显示尺寸的前提下验证设备形态相关逻辑
-  @visibleForTesting
-  static Size? debugSizeOverride;
 
   static String get platformName => PlatformUtils.isDesktop
       ? 'desktop'
